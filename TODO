@@ -1,0 +1,45 @@
+Pending tasks for RXRF24 library-
+
+	#Finalize configuration scheme
+
+	Payload mgmt functions:
+	void rxrf24_payload_write(void *buf, size_t len);  // Write TX payload
+	uint8_t rxrf24_payload_read(void *buf, size_t maxlen);  // Read RX payload, returns length
+	uint8_t rxrf24_rx_pipe();  // Reports pipe# of current RX payload
+	uint8_t rxrf24_rx_size();  // Reports size of current RX payload
+	void rxrf24_flush_tx();
+	void rxrf24_flush_rx();
+
+	Address mgmt functions:
+	void rxrf24_set_txaddr(void *buf);
+	void rxrf24_set_rxaddr(uint8_t pipeid, void *buf);
+
+	Pipe config:
+	void rxrf24_open_pipe(uint8_t pipeid, uint8_t autoack);  // Open an RX pipe with or without AutoACK
+	void rxrf24_close_pipe(uint8_t pipeid);
+	void rxrf24_close_pipe_all();
+	void rxrf24_set_pipe_size(uint8_t pipeid, uint8_t size);  // Set static payload size for pipe; 0 = Dynamic Payload
+
+	IRQ mgmt: **this needs to be reworked, need to define how to implement callback from the user's own IRQ handler
+	uint8_t rxrf24_get_irq_reason();
+	void rxrf24_irq_clear(uint8_t irqflag);
+
+	Init & RF settings:
+	#void rxrf24_init();
+	void rxrf24_set_channel(uint8_t channel);
+	void rxrf24_set_speed(uint32_t speed);  // Supports 250000, 1000000, 2000000
+	void rxrf24_set_txpower(int8_t dbm);  // Supports 0, -6, -12, -18
+	void rxrf24_set_retrans_params(uint16_t delayUS, uint8_t retries);  // delayUS=250 to 4000, retries=1 to 15
+	void rxrf24_set_address_width(uint8_t aw);  // 3, 4, 5 supported
+	void rxrf24_set_crc(uint8_t onoff, uint8_t crc16bit);
+	void rxrf24_set_option(uint8_t feature);
+
+	Power & operational modes:
+	uint8_t rxrf24_current_state();
+	void rxrf24_powerdown();
+	void rxrf24_standby();
+	void rxrf24_activate_tx();
+	void rxrf24_activate_rx();
+	uint8_t rxrf24_is_alive();
+	void rxrf24_test_mode();
+	uint8_t rxrf24_rpd();  // Dump RPD register to indicate if we have any live noise/signal
