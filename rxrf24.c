@@ -242,7 +242,7 @@ void rxrf24_close_pipe_all()
 {
 	rxrf24_write_reg(RF24_EN_RXADDR, 0x00);
 	rxrf24_write_reg(RF24_EN_AA, 0x00);
-	rxrf24_write_reg(RF24_EN_DYNPD, 0x00);
+	rxrf24_write_reg(RF24_EN_DPL, 0x00);
 }
 
 uint8_t rxrf24_pipe_isopen(uint8_t pipeid)
