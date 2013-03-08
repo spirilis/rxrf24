@@ -4,7 +4,7 @@
  *
 
     Copyright (c) 2007 Stefan Engelke <mbox@stefanengelke.de>
-    Some parts copyright (c) 2012 Eric Brundick <spirilis [at] linux dot com>
+    Some parts copyright (c) 2013 Eric Brundick <spirilis [at] linux dot com>
 
     Permission is hereby granted, free of charge, to any person 
     obtaining a copy of this software and associated documentation 
@@ -38,6 +38,14 @@
 #define BIT5 0x20
 #define BIT6 0x40
 #define BIT7 0x80
+#define BIT8 0x0100
+#define BIT9 0x0200
+#define BIT10 0x0400
+#define BIT11 0x0800
+#define BIT12 0x1000
+#define BIT13 0x2000
+#define BIT14 0x4000
+#define BIT15 0x8000
 
 /* Register Map */
 #define RF24_CONFIG      0x00

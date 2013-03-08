@@ -44,6 +44,18 @@ typedef struct {
 	union {
 		uint8_t BYTE;
 		struct {
+			uint8_t :1;
+			uint8_t rfpwr:2;
+			uint8_t rfdrhigh:1;
+			uint8_t plllock:1;
+			uint8_t rfdrlow:1;
+			uint8_t :1;
+			uint8_t contwave:1;
+		} BIT;
+	} rfsetup;
+	union {
+		uint8_t BYTE;
+		struct {
 			uint8_t :2;
 			uint8_t crc16:1;
 			uint8_t en:1;
@@ -94,6 +106,8 @@ uint32_t rxrf24_spi_transfer24(uint32_t);
 uint32_t rxrf24_spi_transfer32(uint32_t);
 
 // Payload management
+uint8_t rxrf24_read_reg(uint8_t reg);
+void rxrf24_write_reg(uint8_t reg, uint8_t val);
 void rxrf24_payload_write(void *buf, size_t len);  // Write TX payload
 uint8_t rxrf24_payload_read(void *buf, size_t maxlen);  // Read RX payload, returns length
 uint8_t rxrf24_rx_pipe();  // Reports pipe# of current RX payload
@@ -102,7 +116,7 @@ void rxrf24_flush_tx();
 void rxrf24_flush_rx();
 
 // Transceiver initialization & configuration
-void rxrf24_init();
+uint8_t rxrf24_init();
 void rxrf24_set_channel(uint8_t channel);
 void rxrf24_set_speed(uint32_t speed);  // Supports 250000, 1000000, 2000000
 void rxrf24_set_txpower(int8_t dbm);  // Supports 0, -6, -12, -18
@@ -115,7 +129,7 @@ void rxrf24_set_option(uint8_t feature);  // Set FEATURE register
 void rxrf24_open_pipe(uint8_t pipeid, uint8_t autoack);  // Open an RX pipe with or without AutoACK
 void rxrf24_close_pipe(uint8_t pipeid);
 void rxrf24_close_pipe_all();
-void rxrf24_set_pipe_size(uint8_t pipeid, uint8_t size);  // Set static payload size for pipe; 0 = Dynamic Payload
+void rxrf24_set_pipe_packetsize(uint8_t pipeid, uint8_t size);  // Set static payload size for pipe; 0 = Dynamic Payload
 
 // RF address configuration
 void rxrf24_set_txaddr(void *buf);
