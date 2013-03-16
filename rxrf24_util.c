@@ -74,7 +74,7 @@ void rxrf24_delay(uint16_t us)
 	rxrf24_rspi_ports_enable();
 }
 
-uint8_t rxrf24_spi_transfer(uint8_t data)
+uint8_t rxrf24_rspi_transfer(uint8_t data)
 {
 	RXRF24_SPI.SPCMD0.BIT.SPB = 7;
 	RXRF24_SPI.SPDR.WORD.H = data;
@@ -83,7 +83,7 @@ uint8_t rxrf24_spi_transfer(uint8_t data)
 	return (RXRF24_SPI.SPDR.WORD.H & 0xFF);
 }
 
-uint16_t rxrf24_spi_transfer16(uint16_t data)
+uint16_t rxrf24_rspi_transfer16(uint16_t data)
 {
 	RXRF24_SPI.SPCMD0.BIT.SPB = 15;
 	RXRF24_SPI.SPDR.WORD.H = data;
@@ -92,7 +92,7 @@ uint16_t rxrf24_spi_transfer16(uint16_t data)
 	return (RXRF24_SPI.SPDR.WORD.H & 0xFFFF);
 }
 
-uint32_t rxrf24_spi_transfer24(uint32_t data)
+uint32_t rxrf24_rspi_transfer24(uint32_t data)
 {
 	RXRF24_SPI.SPCMD0.BIT.SPB = 1;
 	RXRF24_SPI.SPDR.WORD.H = data;
@@ -101,7 +101,7 @@ uint32_t rxrf24_spi_transfer24(uint32_t data)
 	return (RXRF24_SPI.SPDR.WORD.H & 0xFFFFFF);
 }
 
-uint32_t rxrf24_spi_transfer32(uint32_t data)
+uint32_t rxrf24_rspi_transfer32(uint32_t data)
 {
 	RXRF24_SPI.SPCMD0.BIT.SPB = 2;
 	RXRF24_SPI.SPDR.WORD.H = data;

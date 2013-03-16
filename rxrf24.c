@@ -153,7 +153,7 @@ void rxrf24_set_address_width(uint8_t aw)
 
 void rxrf24_set_crc(uint8_t onoff, uint8_t crc16bit)
 {
-	uint8_t cfg, i;
+	uint8_t cfg;
 
 	nrf24.crc.BIT.en = onoff & 0x01;
 	nrf24.crc.BIT.crc16 = crc16bit & 0x01;
@@ -172,30 +172,32 @@ void rxrf24_set_option(uint8_t feature)
 // Note that all addresses are loaded LSByte first (we assume the buf array is stored with MSByte first at position 0)
 void rxrf24_set_txaddr(void *buf)
 {
+	uint8_t *cbuf = (uint8_t*)buf;
+
 	// Uses address_width to determine size of buf
 	uint8_t i;
 
 	nrf24.chipselect(0);
-	rxrf24_rspi_transfer16(RF24_16_W_REGISTER | RF24_16_TX_ADDR | ((uint8_t *)buf)[nrf24.address_width-1]);
+	rxrf24_rspi_transfer16(RF24_16_W_REGISTER | RF24_16_TX_ADDR | cbuf[nrf24.address_width-1]);
 	for (i=1; i<nrf24.address_width; i++)
-		rxrf24_rspi_transfer( ((uint8_t *)buf)[nrf24.address_width-1-i] );
+		rxrf24_rspi_transfer( cbuf[nrf24.address_width-1-i] );
 	nrf24.chipselect(1);
 }
 
 void rxrf24_set_rxaddr(uint8_t pipeid, void *buf)
 {
-	uint8_t i;
+	uint8_t i, *cbuf = (uint8_t*)buf;
 
 	if (pipeid > 5)
 		return;
 
 	nrf24.chipselect(0);
 	if (pipeid < 2) {  // With pipes 2-5, only load the LSByte.
-		rxrf24_rspi_transfer16( (RF24_16_W_REGISTER | RF24_16_RX_ADDR_P0 | ((uint8_t *)buf)[nrf24.address_width-1]) + (pipeid << 8) );
+		rxrf24_rspi_transfer16( (RF24_16_W_REGISTER | RF24_16_RX_ADDR_P0 | cbuf[nrf24.address_width-1]) + (pipeid << 8) );
 		for (i=1; i<nrf24.address_width; i++)
-			rxrf24_rspi_transfer( ((uint8_t *)buf)[nrf24.address_width-1-i] );
+			rxrf24_rspi_transfer( cbuf[nrf24.address_width-1-i] );
 	} else {
-		rxrf24_rspi_transfer16( (RF24_16_W_REGISTER | RF24_16_RX_ADDR_P0 | ((uint8_t *)buf)[nrf24.address_width-1]) + (pipeid << 8) );
+		rxrf24_rspi_transfer16( (RF24_16_W_REGISTER | RF24_16_RX_ADDR_P0 | cbuf[nrf24.address_width-1]) + (pipeid << 8) );
 	}
 	nrf24.chipselect(1);
 }
@@ -250,7 +252,7 @@ uint8_t rxrf24_pipe_isopen(uint8_t pipeid)
 	uint8_t rxen;
 
 	if (pipeid > 5)
-		return;
+		return 0;
 
 	rxen = rxrf24_read_reg(RF24_EN_RXADDR);
 	if (rxen & (1 << pipeid))
@@ -276,8 +278,8 @@ void rxrf24_set_pipe_packetsize(uint8_t pipeid, uint8_t size)
 		}
 	} else {
 		dynpdcfg &= ~(1 << pipeid);
-		if (size > 32)
-		size = 32;
+		if (size > RXRF24_PACKET_SIZE_MAX)
+		size = RXRF24_PACKET_SIZE_MAX;
 		rxrf24_write_reg(RF24_RX_PW_P0+pipeid, size);
 	}
 	rxrf24_write_reg(RF24_DYNPD, dynpdcfg);
@@ -312,13 +314,90 @@ uint8_t rxrf24_rx_size()
 
 	nrf24.chipselect(0);
 	sz = rxrf24_rspi_transfer16(RF24_16_R_RX_PL_WID | RF24_NOP) & 0x00FF;
+	nrf24.chipselect(1);
 	return sz;
 }
 
 uint8_t rxrf24_payload_read(void *buf, size_t maxlen)
 {
 	uint8_t *cbuf = (uint8_t *)buf;
-	uint8_t rxsz;
-	uint16_t j;
+	uint8_t rxsz, i=0, j;
+	uint32_t dt;
 
+	rxsz = rxrf24_rx_size();
+	if (rxsz == 0 || rxsz > RXRF24_PACKET_SIZE_MAX) {
+		rxrf24_flush_rx();
+		return 0;
+	}
+
+	if (rxsz > maxlen)
+		rxsz = maxlen;
+
+	nrf24.chipselect(0);
+	rxrf24_rspi_transfer(RF24_R_RX_PAYLOAD);
+	while (i < rxsz) {
+		j = rxsz-i;
+		if ( j >= 4 ) {
+			dt = rxrf24_rspi_transfer32(0xFFFFFFFF);
+			cbuf[i++] = (dt & 0xFF000000) >> 24;
+			cbuf[i++] = (dt & 0x00FF0000) >> 16;
+			cbuf[i++] = (dt & 0x0000FF00) >> 8;
+			cbuf[i++] = dt & 0x000000FF;
+		} else if ( j >= 3 ) {
+			dt = rxrf24_rspi_transfer24(0xFFFFFF);
+			cbuf[i++] = (dt & 0x00FF0000) >> 16;
+			cbuf[i++] = (dt & 0x0000FF00) >> 8;
+			cbuf[i++] = dt & 0x000000FF;
+		} else if ( j >= 2 ) {
+			dt = rxrf24_rspi_transfer16(0xFFFF);
+			cbuf[i++] = (dt & 0xFF00) >> 8;
+			cbuf[i++] = dt & 0x00FF;
+		} else {
+			cbuf[i++] = rxrf24_rspi_transfer(0xFF);
+		}
+	}
+	nrf24.chipselect(1);
+
+	return i;
+}
+
+void rxrf24_payload_write(void *buf, size_t len)
+{
+	uint8_t *cbuf = (uint8_t*)buf;
+	uint8_t i=0, j;
+	uint32_t dt;
+	uint16_t dt16;
+
+	if (len > RXRF24_PACKET_SIZE_MAX)
+		return;  // Invalid request
+
+	nrf24.chipselect(0);
+	rxrf24_rspi_transfer(RF24_W_TX_PAYLOAD);
+	while (i < len) {
+		j = len-i;
+		if ( j >= 4 ) {
+			dt = (cbuf[i] << 24) |
+			     (cbuf[i+1] << 16) |
+			     (cbuf[i+2] << 8) |
+			     cbuf[i+3];
+			i += 4;
+			rxrf24_rspi_transfer32(dt);
+		} else if ( j >= 3 ) {
+			dt = (cbuf[i] << 16) |
+			     (cbuf[i+1] << 8) |
+			     cbuf[i+2];
+			i += 3;
+			rxrf24_rspi_transfer24(dt);
+		} else if ( j >= 2 ) {
+			dt16 = (cbuf[i] << 8) |
+			     cbuf[i+1];
+			i += 2;
+			rxrf24_rspi_transfer16(dt16);
+		} else {
+			rxrf24_rspi_transfer(cbuf[i++]);
+		}
+	}
+	nrf24.chipselect(1);
+
+	return;
 }

@@ -12,6 +12,9 @@
 #include <sys/types.h>
 
 
+/* nRF24L01+ supports <=32 byte packets */
+#define RXRF24_PACKET_SIZE_MAX 32
+
 /* Pointer to simple I/O function provided by the user */
 typedef void(*portIOfunc)(uint8_t onoff);
 
@@ -100,10 +103,10 @@ void rxrf24_rspi_init();
 void rxrf24_rspi_ports_enable();  // User-tweaked function to flip on RSPI functionality on pins
 void rxrf24_rspi_ports_disable(); // User-tweaked function to suspend RSPI functionality on pins
 void rxrf24_delay(uint16_t us);  // Performs a strawman SPI transfer for X microseconds
-uint8_t rxrf24_spi_transfer(uint8_t);     // SPI transfers
-uint16_t rxrf24_spi_transfer16(uint16_t);
-uint32_t rxrf24_spi_transfer24(uint32_t);
-uint32_t rxrf24_spi_transfer32(uint32_t);
+uint8_t rxrf24_rspi_transfer(uint8_t);     // SPI transfers
+uint16_t rxrf24_rspi_transfer16(uint16_t);
+uint32_t rxrf24_rspi_transfer24(uint32_t);
+uint32_t rxrf24_rspi_transfer32(uint32_t);
 
 // Payload management
 uint8_t rxrf24_read_reg(uint8_t reg);
