@@ -21,14 +21,14 @@ typedef void(*portIOfunc)(uint8_t onoff);
 /* Transceiver Configuration datatype */
 typedef struct {
 	union {
-		uint8_t BYTE;
+		volatile uint8_t BYTE;
 		struct {
 			uint8_t :4;
 			uint8_t txfailed:1;
 			uint8_t tx:1;
 			uint8_t rx:1;
 			uint8_t flag:1;
-		} BIT;
+		} volatile BIT;
 	} irq;
 	union {
 		uint8_t BYTE;
@@ -65,6 +65,7 @@ typedef struct {
 			uint8_t :4;
 		} BIT;
 	} crc;
+	uint8_t rxpipe;
 
 	portIOfunc chipselect_init;
 	portIOfunc chipselect;
@@ -102,7 +103,7 @@ void rxrf24_register_portcallback(portIOfunc csninit, portIOfunc csn, portIOfunc
 void rxrf24_rspi_init();
 void rxrf24_rspi_ports_enable();  // User-tweaked function to flip on RSPI functionality on pins
 void rxrf24_rspi_ports_disable(); // User-tweaked function to suspend RSPI functionality on pins
-void rxrf24_delay(uint16_t us);  // Performs a strawman SPI transfer for X microseconds
+void rxrf24_rspi_delay(uint16_t us);  // Performs a strawman SPI transfer for X microseconds
 uint8_t rxrf24_rspi_transfer(uint8_t);     // SPI transfers
 uint16_t rxrf24_rspi_transfer16(uint16_t);
 uint32_t rxrf24_rspi_transfer24(uint32_t);
@@ -145,11 +146,12 @@ void rxrf24_standby();
 void rxrf24_activate_tx();
 void rxrf24_activate_rx();
 uint8_t rxrf24_is_alive();
-void rxrf24_test_mode();
+void rxrf24_test_mode(uint8_t onoff);
 uint8_t rxrf24_rpd();  // Dump RPD register to indicate if we have any live noise/signal
 
 // IRQ and event management
 uint8_t rxrf24_get_irq_reason();
 void rxrf24_irq_clear(uint8_t irqflag);
+void rxrf24_irq_handler() __attribute__((interrupt));
 
 #endif

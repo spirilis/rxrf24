@@ -40,8 +40,18 @@ uint8_t rxrf24_init()
 	nrf24.chipenable_init(1);
 	nrf24.chipenable(0);  // CE = LOW (inactive)
 
+	// Initialize nrf24 config struct by masking away any known-unused bits
+	// from the registers.
+	nrf24.irq.BYTE &= 0x70;
+	nrf24.status.BYTE = 0x00;
+	nrf24.rfsetup.BYTE = 0x00;
+	nrf24.crc.BYTE &= 0x0C;
+
+	// Initialize SPI, flush & continue initializing transceiver state
+	rxrf24_rspi_init();
 	rxrf24_flush_tx();
 	rxrf24_flush_rx();
+	rxrf24_irq_clear(0x70);
 	rxrf24_set_option(RF24_EN_DPL);
 	rxrf24_set_crc(nrf24.crc.BIT.en, nrf24.crc.BIT.crc16);
 	rxrf24_set_channel(nrf24.channel);
@@ -334,7 +344,10 @@ uint8_t rxrf24_payload_read(void *buf, size_t maxlen)
 		rxsz = maxlen;
 
 	nrf24.chipselect(0);
-	rxrf24_rspi_transfer(RF24_R_RX_PAYLOAD);
+	j = rxrf24_rspi_transfer(RF24_R_RX_PAYLOAD);
+	// j now contains the STATUS register; extract pipe ID from this
+	nrf24.rxpipe = (j & 0x0E) >> 1;
+
 	while (i < rxsz) {
 		j = rxsz-i;
 		if ( j >= 4 ) {
@@ -400,4 +413,150 @@ void rxrf24_payload_write(void *buf, size_t len)
 	nrf24.chipselect(1);
 
 	return;
+}
+
+/* Power & Operational state management */
+uint8_t rxrf24_current_state()
+{
+	uint8_t cfg, fifo, rfs;
+
+	if (!rxrf24_is_alive())
+		return RXRF24_STATE_NOTPRESENT;
+
+	cfg = rxrf24_read_reg(RF24_CONFIG);
+	fifo = rxrf24_read_reg(RF24_FIFO_STATUS);
+	rfs = rxrf24_read_reg(RF24_RF_SETUP);
+
+	if ( !(cfg & RF24_PWR_UP) )
+		return RXRF24_STATE_POWERDOWN;
+	if (rfs & (RF24_CONT_WAVE | RF24_PLL_LOCK))
+		return RXRF24_STATE_TEST;
+	if (cfg & RF24_PRIM_RX)
+		return RXRF24_STATE_PRX;
+	if (fifo & RF24_TX_EMPTY)
+		return RXRF24_STATE_STANDBY;
+	return RXRF24_STATE_PTX;
+}
+
+uint8_t rxrf24_config_settings()
+{
+	return nrf24.crc.BYTE;
+}
+
+void rxrf24_powerdown()
+{
+	nrf24.chipenable(0);
+	rxrf24_write_reg(RF24_CONFIG, rxrf24_config_settings());
+}
+
+void rxrf24_standby()
+{
+	nrf24.chipenable(0);
+	rxrf24_write_reg(RF24_CONFIG, rxrf24_config_settings() | RF24_PWR_UP);
+}
+
+void rxrf24_activate_tx()
+{
+	uint8_t st;
+
+	st = rxrf24_current_state();
+	switch (st) {
+		case RXRF24_STATE_NOTPRESENT:
+			return;
+			break;
+		case RXRF24_STATE_POWERDOWN:
+			rxrf24_standby();
+			rxrf24_rspi_delay(5000);
+			break;
+		case RXRF24_STATE_TEST:
+			rxrf24_test_mode(0);
+			rxrf24_standby();
+			rxrf24_rspi_delay(5000);
+			break;
+	}
+
+	rxrf24_write_reg(RF24_CONFIG, rxrf24_config_settings() | RF24_PWR_UP);
+	nrf24.chipenable(1);
+	rxrf24_rspi_delay(20);
+	nrf24.chipenable(0);
+	rxrf24_rspi_delay(130);
+	return;
+}
+
+void rxrf24_activate_rx()
+{
+	uint8_t st;
+
+	st = rxrf24_current_state();
+	switch (st) {
+		case RXRF24_STATE_NOTPRESENT:
+			return;
+			break;
+		case RXRF24_STATE_POWERDOWN:
+			rxrf24_standby();
+			rxrf24_rspi_delay(5000);
+			break;
+		case RXRF24_STATE_TEST:
+			rxrf24_test_mode(0);
+			rxrf24_standby();
+			rxrf24_rspi_delay(5000);
+			break;
+	}
+
+	rxrf24_write_reg(RF24_CONFIG, rxrf24_config_settings() | RF24_PWR_UP | RF24_PRIM_RX);
+	nrf24.chipenable(1);
+	rxrf24_rspi_delay(130);
+}
+
+uint8_t rxrf24_is_alive()
+{
+	uint8_t aw;
+
+	aw = rxrf24_read_reg(RF24_SETUP_AW);
+	if ( (aw & 0x03) == 0 || (aw & 0xFC) != 0 )
+		return 0;
+	return 1;
+}
+
+void rxrf24_test_mode(uint8_t onoff)
+{
+	if (onoff)
+		rxrf24_write_reg(RF24_CONFIG, rxrf24_config_settings() | RF24_PWR_UP);
+	else
+		rxrf24_write_reg(RF24_CONFIG, rxrf24_config_settings());
+
+	nrf24.rfsetup.BIT.plllock = onoff & 0x01;
+	nrf24.rfsetup.BIT.contwave = onoff & 0x01;
+	rxrf24_write_reg(RF24_RF_SETUP, nrf24.rfsetup.BYTE);
+}
+
+uint8_t rxrf24_rpd()
+{
+	return rxrf24_read_reg(RF24_RPD);
+}
+
+/* IRQ management */
+uint8_t rxrf24_get_irq_reason()
+{
+	uint8_t st;
+
+	nrf24.chipselect(0);  /* We're manually managing the transfer here b/c STATUS is available
+			       * as the first byte returned by a fresh SPI request, thus minimal
+			       * SPI I/O is necessary.
+			       */
+	st = rxrf24_rspi_transfer(RF24_NOP);
+	nrf24.chipselect(1);
+
+	nrf24.irq.BYTE = st & 0x70;  // This implicitly clears the nrf24.irq.BIT.flag bit.
+	return nrf24.irq.BYTE;
+}
+
+void rxrf24_irq_clear(uint8_t irqflag)
+{
+	rxrf24_write_reg(RF24_STATUS, irqflag & 0x70);
+}
+
+void rxrf24_irq_handler()
+{
+	nrf24.irq.BIT.flag = 1;
 }

@@ -34,7 +34,7 @@ void rxrf24_rspi_init()
 {
 	RXRF24_SPI.SPCR.BYTE = 0;
 	RXRF24_SPI.SPPCR.BYTE = 0;
-	RXRF24_SPI.SPBR = 1;  // 12MHz SPI, assuming PCLK=48MHz
+	RXRF24_SPI.SPBR = 2;  // 12MHz SPI, assuming PCLK=48MHz
 	RXRF24_SPI.SPDCR.BYTE = 0;
 	RXRF24_SPI.SPCKD.BYTE = 0;
 	RXRF24_SPI.SSLND.BYTE = 0;
@@ -48,7 +48,7 @@ void rxrf24_rspi_init()
 	rxrf24_rspi_ports_enable();
 }
 
-void rxrf24_delay(uint16_t us)
+void rxrf24_rspi_delay(uint16_t us)
 {
 	uint32_t i, j, k;
 	uint16_t spcmd0_save;
@@ -66,6 +66,9 @@ void rxrf24_delay(uint16_t us)
 		while (!RXRF24_SPI.SPSR.BIT.SPRF)
 			;
 		k = RXRF24_SPI.SPDR.WORD.H;
+		k++;   /* do something with 'k' so GCC quits bitching about setting
+			* a variable but not doing anything with it
+			*/
 	}
 
 	// Restore RSPI config
