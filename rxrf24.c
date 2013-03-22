@@ -1,4 +1,26 @@
 /* RX nRF24L01+ library
+ *
+    Copyright (c) 2013 Eric Brundick <spirilis [at] linux dot com>
+
+    Permission is hereby granted, free of charge, to any person
+    obtaining a copy of this software and associated documentation
+    files (the "Software"), to deal in the Software without
+    restriction, including without limitation the rights to use, copy,
+    modify, merge, publish, distribute, sublicense, and/or sell copies
+    of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be
+    included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
  */
 
 #include "iodefine.h"
@@ -6,6 +28,7 @@
 #include "rxrf24.h"
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 rxrf24_t nrf24;  // Global transceiver configuration
 
@@ -352,19 +375,25 @@ uint8_t rxrf24_payload_read(void *buf, size_t maxlen)
 		j = rxsz-i;
 		if ( j >= 4 ) {
 			dt = rxrf24_rspi_transfer32(0xFFFFFFFF);
-			cbuf[i++] = (dt & 0xFF000000) >> 24;
+			dt = __builtin_bswap32(dt);
+			memcpy(cbuf+i, &dt, 4);
+		/*	cbuf[i++] = (dt & 0xFF000000) >> 24;  // Old non-optimized code
 			cbuf[i++] = (dt & 0x00FF0000) >> 16;
 			cbuf[i++] = (dt & 0x0000FF00) >> 8;
-			cbuf[i++] = dt & 0x000000FF;
+			cbuf[i++] = dt & 0x000000FF;  */
 		} else if ( j >= 3 ) {
 			dt = rxrf24_rspi_transfer24(0xFFFFFF);
-			cbuf[i++] = (dt & 0x00FF0000) >> 16;
+			dt = __builtin_bswap32(dt);
+			memcpy(cbuf+i, (&dt)+1, 3);
+		/*	cbuf[i++] = (dt & 0x00FF0000) >> 16;
 			cbuf[i++] = (dt & 0x0000FF00) >> 8;
-			cbuf[i++] = dt & 0x000000FF;
+			cbuf[i++] = dt & 0x000000FF;  */
 		} else if ( j >= 2 ) {
 			dt = rxrf24_rspi_transfer16(0xFFFF);
-			cbuf[i++] = (dt & 0xFF00) >> 8;
-			cbuf[i++] = dt & 0x00FF;
+			dt = __builtin_rx_revw(dt);
+			memcpy(cbuf+i, &dt, 2);
+		/*	cbuf[i++] = (dt & 0xFF00) >> 8;
+			cbuf[i++] = dt & 0x00FF;      */
 		} else {
 			cbuf[i++] = rxrf24_rspi_transfer(0xFF);
 		}
@@ -389,21 +418,24 @@ void rxrf24_payload_write(void *buf, size_t len)
 	while (i < len) {
 		j = len-i;
 		if ( j >= 4 ) {
-			dt = (cbuf[i] << 24) |
+			dt = __builtin_bswap32( (uint32_t) (cbuf+i) );
+		/*	dt = (cbuf[i] << 24) |
 			     (cbuf[i+1] << 16) |
 			     (cbuf[i+2] << 8) |
-			     cbuf[i+3];
+			     cbuf[i+3]; */
 			i += 4;
 			rxrf24_rspi_transfer32(dt);
 		} else if ( j >= 3 ) {
-			dt = (cbuf[i] << 16) |
+			dt = __builtin_bswap32( (uint32_t) (cbuf+i) ) >> 8;
+		/*	dt = (cbuf[i] << 16) |
 			     (cbuf[i+1] << 8) |
-			     cbuf[i+2];
+			     cbuf[i+2]; */
 			i += 3;
 			rxrf24_rspi_transfer24(dt);
 		} else if ( j >= 2 ) {
-			dt16 = (cbuf[i] << 8) |
-			     cbuf[i+1];
+			dt16 = (uint16_t) (__builtin_rx_revw( (uint32_t) (cbuf+i) ) & 0x0000FFFF);
+		/*	dt16 = (cbuf[i] << 8) |
+			     cbuf[i+1]; */
 			i += 2;
 			rxrf24_rspi_transfer16(dt16);
 		} else {
