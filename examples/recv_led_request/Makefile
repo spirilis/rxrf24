@@ -2,7 +2,7 @@ TARGETMCU       ?= rx600
 
 CROSS           := rx-elf-
 CC              := $(CROSS)gcc
-LDSCRIPT	:= rx62n.ld
+LDSCRIPT	:= rx62n8.ld
 FLASHER		:= rxusb -v -v -d
 CFLAGS          := -Os -Wall -Werror -g -mcpu=$(TARGETMCU)
 CFLAGS += -fdata-sections -ffunction-sections -Wl,--gc-sections
