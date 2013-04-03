@@ -138,6 +138,7 @@ void rxrf24_payload_write(void *buf, size_t len);  // Write TX payload
 uint8_t rxrf24_payload_read(void *buf, size_t maxlen);  // Read RX payload, returns length
 uint8_t rxrf24_rx_pipe();  // Reports pipe# of current RX payload
 uint8_t rxrf24_rx_size();  // Reports size of current RX payload
+uint8_t rxrf24_queue_state();
 void rxrf24_flush_tx();
 void rxrf24_flush_rx();
 

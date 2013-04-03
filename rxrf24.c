@@ -470,6 +470,11 @@ uint8_t rxrf24_current_state()
 	return RXRF24_STATE_PTX;
 }
 
+uint8_t rxrf24_queue_state()
+{
+	return rxrf24_read_reg(RF24_FIFO_STATUS);
+}
+
 uint8_t rxrf24_config_settings()
 {
 	return nrf24.crc.BYTE;
