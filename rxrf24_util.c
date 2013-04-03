@@ -101,6 +101,7 @@ void rxrf24_rspi_delay(uint16_t us)
 
 uint8_t rxrf24_rspi_transfer(uint8_t data)
 {
+	RXRF24_SPI.SPDCR.BIT.SPLW = 0;
 	RXRF24_SPI.SPCMD0.BIT.SPB = 7;
 	RXRF24_SPI.SPDR.WORD.H = data;
 	while (!RXRF24_SPI.SPSR.BIT.SPRF)
@@ -110,6 +111,7 @@ uint8_t rxrf24_rspi_transfer(uint8_t data)
 
 uint16_t rxrf24_rspi_transfer16(uint16_t data)
 {
+	RXRF24_SPI.SPDCR.BIT.SPLW = 0;
 	RXRF24_SPI.SPCMD0.BIT.SPB = 15;
 	RXRF24_SPI.SPDR.WORD.H = data;
 	while (!RXRF24_SPI.SPSR.BIT.SPRF)
@@ -119,18 +121,20 @@ uint16_t rxrf24_rspi_transfer16(uint16_t data)
 
 uint32_t rxrf24_rspi_transfer24(uint32_t data)
 {
+	RXRF24_SPI.SPDCR.BIT.SPLW = 1;
 	RXRF24_SPI.SPCMD0.BIT.SPB = 1;
-	RXRF24_SPI.SPDR.WORD.H = data;
+	RXRF24_SPI.SPDR.LONG = data;
 	while (!RXRF24_SPI.SPSR.BIT.SPRF)
 		;
-	return (RXRF24_SPI.SPDR.WORD.H & 0xFFFFFF);
+	return (RXRF24_SPI.SPDR.LONG & 0xFFFFFF);
 }
 
 uint32_t rxrf24_rspi_transfer32(uint32_t data)
 {
+	RXRF24_SPI.SPDCR.BIT.SPLW = 1;
 	RXRF24_SPI.SPCMD0.BIT.SPB = 2;
-	RXRF24_SPI.SPDR.WORD.H = data;
+	RXRF24_SPI.SPDR.LONG = data;
 	while (!RXRF24_SPI.SPSR.BIT.SPRF)
 		;
-	return RXRF24_SPI.SPDR.WORD.H;
+	return RXRF24_SPI.SPDR.LONG;
 }

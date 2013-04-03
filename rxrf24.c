@@ -377,23 +377,14 @@ uint8_t rxrf24_payload_read(void *buf, size_t maxlen)
 			dt = rxrf24_rspi_transfer32(0xFFFFFFFF);
 			dt = __builtin_bswap32(dt);
 			memcpy(cbuf+i, &dt, 4);
-		/*	cbuf[i++] = (dt & 0xFF000000) >> 24;  // Old non-optimized code
-			cbuf[i++] = (dt & 0x00FF0000) >> 16;
-			cbuf[i++] = (dt & 0x0000FF00) >> 8;
-			cbuf[i++] = dt & 0x000000FF;  */
 		} else if ( j >= 3 ) {
 			dt = rxrf24_rspi_transfer24(0xFFFFFF);
 			dt = __builtin_bswap32(dt);
 			memcpy(cbuf+i, (&dt)+1, 3);
-		/*	cbuf[i++] = (dt & 0x00FF0000) >> 16;
-			cbuf[i++] = (dt & 0x0000FF00) >> 8;
-			cbuf[i++] = dt & 0x000000FF;  */
 		} else if ( j >= 2 ) {
 			dt = rxrf24_rspi_transfer16(0xFFFF);
 			dt = __builtin_rx_revw(dt);
 			memcpy(cbuf+i, &dt, 2);
-		/*	cbuf[i++] = (dt & 0xFF00) >> 8;
-			cbuf[i++] = dt & 0x00FF;      */
 		} else {
 			cbuf[i++] = rxrf24_rspi_transfer(0xFF);
 		}
@@ -407,8 +398,8 @@ void rxrf24_payload_write(void *buf, size_t len)
 {
 	uint8_t *cbuf = (uint8_t*)buf;
 	uint8_t i=0, j;
-	uint32_t dt;
-	uint16_t dt16;
+	uint32_t dt, *dtm;
+	uint16_t dt16, *dt16m;
 
 	if (len > RXRF24_PACKET_SIZE_MAX)
 		return;  // Invalid request
@@ -418,24 +409,18 @@ void rxrf24_payload_write(void *buf, size_t len)
 	while (i < len) {
 		j = len-i;
 		if ( j >= 4 ) {
-			dt = __builtin_bswap32( (uint32_t) (cbuf+i) );
-		/*	dt = (cbuf[i] << 24) |
-			     (cbuf[i+1] << 16) |
-			     (cbuf[i+2] << 8) |
-			     cbuf[i+3]; */
+			dtm = (void *)cbuf+i;
+			dt = __builtin_bswap32( *dtm );
 			i += 4;
 			rxrf24_rspi_transfer32(dt);
 		} else if ( j >= 3 ) {
-			dt = __builtin_bswap32( (uint32_t) (cbuf+i) ) >> 8;
-		/*	dt = (cbuf[i] << 16) |
-			     (cbuf[i+1] << 8) |
-			     cbuf[i+2]; */
+			dtm = (void *)cbuf+i;
+			dt = __builtin_bswap32( *dtm ) >> 8;
 			i += 3;
 			rxrf24_rspi_transfer24(dt);
 		} else if ( j >= 2 ) {
-			dt16 = (uint16_t) (__builtin_rx_revw( (uint32_t) (cbuf+i) ) & 0x0000FFFF);
-		/*	dt16 = (cbuf[i] << 8) |
-			     cbuf[i+1]; */
+			dt16m = (void *)cbuf+i;
+			dt16 = (uint16_t) (__builtin_rx_revw( *dt16m ) & 0x0000FFFF);
 			i += 2;
 			rxrf24_rspi_transfer16(dt16);
 		} else {
