@@ -355,7 +355,8 @@ uint8_t rxrf24_payload_read(void *buf, size_t maxlen)
 {
 	uint8_t *cbuf = (uint8_t *)buf;
 	uint8_t rxsz, i=0, j;
-	uint32_t dt;
+	uint32_t dt, *dtm;
+	uint16_t *dt16m;
 
 	rxsz = rxrf24_rx_size();
 	if (rxsz == 0 || rxsz > RXRF24_PACKET_SIZE_MAX) {
@@ -376,15 +377,21 @@ uint8_t rxrf24_payload_read(void *buf, size_t maxlen)
 		if ( j >= 4 ) {
 			dt = rxrf24_rspi_transfer32(0xFFFFFFFF);
 			dt = __builtin_bswap32(dt);
-			memcpy(cbuf+i, &dt, 4);
+			dtm = (void *)cbuf+i;
+			*dtm = dt;
+			i += 4;
 		} else if ( j >= 3 ) {
 			dt = rxrf24_rspi_transfer24(0xFFFFFF);
 			dt = __builtin_bswap32(dt);
-			memcpy(cbuf+i, (&dt)+1, 3);
+			dtm = (void *)cbuf+i;
+			*dtm = dt;
+			i += 3;
 		} else if ( j >= 2 ) {
 			dt = rxrf24_rspi_transfer16(0xFFFF);
 			dt = __builtin_rx_revw(dt);
-			memcpy(cbuf+i, &dt, 2);
+			dt16m = (void *)cbuf+i;
+			*dt16m = (uint16_t) dt;
+			i += 2;
 		} else {
 			cbuf[i++] = rxrf24_rspi_transfer(0xFF);
 		}
@@ -398,8 +405,8 @@ void rxrf24_payload_write(void *buf, size_t len)
 {
 	uint8_t *cbuf = (uint8_t*)buf;
 	uint8_t i=0, j;
-	uint32_t dt, *dtm;
-	uint16_t dt16, *dt16m;
+	uint32_t dt;
+	uint16_t dt16;
 
 	if (len > RXRF24_PACKET_SIZE_MAX)
 		return;  // Invalid request
@@ -409,18 +416,15 @@ void rxrf24_payload_write(void *buf, size_t len)
 	while (i < len) {
 		j = len-i;
 		if ( j >= 4 ) {
-			dtm = (void *)cbuf+i;
-			dt = __builtin_bswap32( *dtm );
+			dt = __builtin_bswap32( *( (uint32_t*)(cbuf+i) ) );
 			i += 4;
 			rxrf24_rspi_transfer32(dt);
 		} else if ( j >= 3 ) {
-			dtm = (void *)cbuf+i;
-			dt = __builtin_bswap32( *dtm ) >> 8;
+			dt = __builtin_bswap32( *( (uint32_t*)(cbuf+i) ) ) >> 8;
 			i += 3;
 			rxrf24_rspi_transfer24(dt);
 		} else if ( j >= 2 ) {
-			dt16m = (void *)cbuf+i;
-			dt16 = (uint16_t) (__builtin_rx_revw( *dt16m ) & 0x0000FFFF);
+			dt16 = (uint16_t) __builtin_rx_revw( *( (uint16_t*)(cbuf+i) ) );
 			i += 2;
 			rxrf24_rspi_transfer16(dt16);
 		} else {
