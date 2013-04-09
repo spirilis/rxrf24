@@ -134,8 +134,8 @@ uint32_t rxrf24_rspi_transfer32(uint32_t);
 // Payload management
 uint8_t rxrf24_read_reg(uint8_t reg);
 void rxrf24_write_reg(uint8_t reg, uint8_t val);
-void rxrf24_payload_write(void *buf, size_t len);  // Write TX payload
-uint8_t rxrf24_payload_read(void *buf, size_t maxlen);  // Read RX payload, returns length
+void rxrf24_payload_write(size_t len, void *buf);  // Write TX payload
+uint8_t rxrf24_payload_read(size_t maxlen, void *buf);  // Read RX payload, returns length
 uint8_t rxrf24_rx_pipe();  // Reports pipe# of current RX payload
 uint8_t rxrf24_rx_size();  // Reports size of current RX payload
 uint8_t rxrf24_queue_state();

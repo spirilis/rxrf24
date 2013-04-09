@@ -133,7 +133,7 @@ int main()
 
 		rxrf24_get_irq_reason();
 		if (nrf24.irq.BIT.rx) {
-			sz = rxrf24_payload_read(inbuf, 32);
+			sz = rxrf24_payload_read(32, inbuf);
 			if (sz) {
 				if (inbuf[0] == '1')  // ASCII char "1" expected for 1
 					led_set(1);

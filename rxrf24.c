@@ -351,7 +351,7 @@ uint8_t rxrf24_rx_size()
 	return sz;
 }
 
-uint8_t rxrf24_payload_read(void *buf, size_t maxlen)
+uint8_t rxrf24_payload_read(size_t maxlen, void *buf)
 {
 	uint8_t *cbuf = (uint8_t *)buf;
 	uint8_t rxsz, i=0, j;
@@ -401,7 +401,7 @@ uint8_t rxrf24_payload_read(void *buf, size_t maxlen)
 	return i;
 }
 
-void rxrf24_payload_write(void *buf, size_t len)
+void rxrf24_payload_write(size_t len, void *buf)
 {
 	uint8_t *cbuf = (uint8_t*)buf;
 	uint8_t i=0, j;
@@ -464,21 +464,16 @@ uint8_t rxrf24_queue_state()
 	return rxrf24_read_reg(RF24_FIFO_STATUS);
 }
 
-uint8_t rxrf24_config_settings()
-{
-	return nrf24.crc.BYTE;
-}
-
 void rxrf24_powerdown()
 {
 	nrf24.chipenable(0);
-	rxrf24_write_reg(RF24_CONFIG, rxrf24_config_settings());
+	rxrf24_write_reg(RF24_CONFIG, nrf24.crc.BYTE);
 }
 
 void rxrf24_standby()
 {
 	nrf24.chipenable(0);
-	rxrf24_write_reg(RF24_CONFIG, rxrf24_config_settings() | RF24_PWR_UP);
+	rxrf24_write_reg(RF24_CONFIG, nrf24.crc.BYTE | RF24_PWR_UP);
 }
 
 void rxrf24_activate_tx()
@@ -501,7 +496,7 @@ void rxrf24_activate_tx()
 			break;
 	}
 
-	rxrf24_write_reg(RF24_CONFIG, rxrf24_config_settings() | RF24_PWR_UP);
+	rxrf24_write_reg(RF24_CONFIG, nrf24.crc.BYTE | RF24_PWR_UP);
 	nrf24.chipenable(1);
 	rxrf24_rspi_delay(20);
 	nrf24.chipenable(0);
@@ -529,7 +524,7 @@ void rxrf24_activate_rx()
 			break;
 	}
 
-	rxrf24_write_reg(RF24_CONFIG, rxrf24_config_settings() | RF24_PWR_UP | RF24_PRIM_RX);
+	rxrf24_write_reg(RF24_CONFIG, nrf24.crc.BYTE | RF24_PWR_UP | RF24_PRIM_RX);
 	nrf24.chipenable(1);
 	rxrf24_rspi_delay(130);
 }
@@ -547,9 +542,9 @@ uint8_t rxrf24_is_alive()
 void rxrf24_test_mode(uint8_t onoff)
 {
 	if (onoff)
-		rxrf24_write_reg(RF24_CONFIG, rxrf24_config_settings() | RF24_PWR_UP);
+		rxrf24_write_reg(RF24_CONFIG, nrf24.crc.BYTE | RF24_PWR_UP);
 	else
-		rxrf24_write_reg(RF24_CONFIG, rxrf24_config_settings());
+		rxrf24_write_reg(RF24_CONFIG, nrf24.crc.BYTE);
 
 	nrf24.rfsetup.BIT.plllock = onoff & 0x01;
 	nrf24.rfsetup.BIT.contwave = onoff & 0x01;
